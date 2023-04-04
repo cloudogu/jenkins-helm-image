@@ -1,6 +1,7 @@
 name: Trigger release on new Helm version
-on: push
-
+on: 
+  schedule:
+    - cron:  '*/5 * * * *'
 
 jobs:
   check_for_new_helm_version_and_push_image:
