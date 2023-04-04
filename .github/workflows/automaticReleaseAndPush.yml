@@ -1,0 +1,98 @@
+name: Trigger release on new Helm version
+on: push
+
+
+jobs:
+  check_for_new_helm_version:
+    name: Update on new release
+    runs-on: ubuntu-20.04
+    steps:
+      - 
+        run: sudo apt-get install -y jq
+      - 
+        uses: actions/checkout@v3
+      -
+        name: Compare releases
+        id: compare_releases
+        run: |
+          eval $(scripts/checkHelmVersion.sh)
+          echo "triggerNewRelease=${triggerNewRelease}" >> $GITHUB_OUTPUT
+          echo "helmRelease=${helmRelease}" >> $GITHUB_OUTPUT
+      -
+        name: Get Plugins
+        id: get_plugins
+        run: |
+          eval $(scripts/getPackages.sh)
+      - 
+        uses: stefanzweifel/git-auto-commit-action@v4
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        with:
+          commit_message: Updated to latest Helm version v${{ steps.compare_releases.outputs.helmRelease }}
+      -
+        name: Create release on new Helm version
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        uses: "actions/create-release@v1"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "${{ steps.compare_releases.outputs.helmRelease }}-1"
+          release_name: "${{ steps.compare_releases.outputs.helmRelease }}-1"
+          body: |
+                 The image can be pulled with `$ docker pull ghcr.io/cloudogu/jenkins-helm:${{ steps.compare_releases.outputs.helmRelease }}-1`
+          draft: false
+          prerelease: false       
+  push_to_registry:
+    needs: check_for_new_helm_version
+    name: Push Docker image to GitHub Packages
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        uses: actions/checkout@v3
+      - name: Prepare
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        id: prep
+        run: |
+          GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/jenkins-helm
+          VERSION=latest
+
+          TAGS="${GHCR_IMAGE}:${VERSION}"
+
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            TAGS="${TAGS},${GHCR_IMAGE}:${VERSION}"
+          fi
+
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "GHCR_IMAGE=${GHCR_IMAGE}" >> $GITHUB_ENV
+          echo "TAGS=${TAGS}" >> $GITHUB_ENV
+          
+          echo "IMAGE=ghcr.io/$GITHUB_REPOSITORY" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "GIT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+          echo "GIT_REF=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)" >> $GITHUB_ENV
+      - name: Login to GitHub Container Registry
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          labels: |
+            org.opencontainers.image.authors=${{ github.repository_owner }}
+            org.opencontainers.image.created=${{ env.BUILD_DATE }}
+            org.opencontainers.image.description=Created from commit ${{ env.GIT_SHA }} and ref ${{ env.GIT_REF }}
+            org.opencontainers.image.ref.name=${{ env.GIT_REF }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: ${{ env.TAGS }}
+      - name: Check manifest
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        run: docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ env.VERSION }}
+        
