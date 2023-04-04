@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function getLatestCloudoguHelmRelease() {
-    latestCloudoguRelease=$(curl -s https://api.github.com/repos/cloudogu/jenkins-base/releases/latest | jq -r '.tag_name')
+    latestCloudoguRelease=$(curl -s https://api.github.com/repos/cloudogu/jenkins-helm-image/releases/latest | jq -r '.tag_name')
     echo "$latestCloudoguRelease"
 }
 
