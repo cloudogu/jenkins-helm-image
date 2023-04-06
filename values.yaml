@@ -19,7 +19,7 @@ controller:
   # Used for label app.kubernetes.io/component
   componentName: "jenkins-controller"
   image: "jenkins/jenkins"
-  # tag: "2.387.1-jdk11"
+  # tag: "2.387.2-jdk11"
   tagLabel: jdk11
   imagePullPolicy: "Always"
   imagePullSecretName:
@@ -143,7 +143,7 @@ controller:
   #   service.beta.kubernetes.io/aws-load-balancer-backend-protocol: https
   # Put labels on Jenkins controller pod
   podLabels: {}
-  # Used to create Ingress record (should used with ServiceType: ClusterIP)
+  # Used to create Ingress record (should be used with ServiceType: ClusterIP)
   # nodePort: <to set explicitly, choose port between 30000-32767
   # Enable Kubernetes Startup, Liveness and Readiness Probes
   # if Startup Probe is supported, enable it too
@@ -617,7 +617,7 @@ controller:
 agent:
   enabled: true
   defaultsProviderTemplate: ""
-  # URL for connecting to the Jenkins contoller
+  # URL for connecting to the Jenkins controller
   jenkinsUrl:
   # connect to the specified host and port, instead of connecting directly to the Jenkins controller
   jenkinsTunnel:
@@ -972,4 +972,4 @@ helmtest:
   bats:
     # Bash Automated Testing System (BATS)
     image: "bats/bats"
-    tag: "1.2.1"
+    tag: "1.9.0"
