@@ -1,3 +1,3 @@
-ARG PLUGINS=kubernetes:3900.va_dce992317b_4
-FROM jenkins/jenkins:2.387.2-jdk8
+ARG PLUGINS=kubernetes:3900.va_dce992317b_4 workflow-aggregator:596.v8c21c963d92d git:5.0.0 configuration-as-code:1625.v27444588cc3d
+FROM jenkins/jenkins:2.387.2-jdk11
 RUN jenkins-plugin-cli --plugins $PLUGINS
