@@ -16,8 +16,10 @@ jobs:
         id: compare_releases
         run: |
           eval $(scripts/checkHelmVersion.sh)
-          echo "triggerNewRelease=${triggerNewRelease}" >> $GITHUB_OUTPUT
-          echo "helmRelease=${helmRelease}" >> $GITHUB_OUTPUT
+          echo "triggerNewRelease=${triggerNewRelease}" | tee -a $GITHUB_OUTPUT
+          echo "helmRelease=${helmRelease}" | tee -a $GITHUB_OUTPUT
+          echo "docker_and_git_tag=${helmRelease}-1" | tee -a $GITHUB_OUTPUT
+# TODO increment prefix -1 if exists ⬆️  
       - name: Get Plugins
         id: get_plugins
         run: |
@@ -25,58 +27,54 @@ jobs:
       - name: Commit changes
         id: auto-commit-action
         uses: stefanzweifel/git-auto-commit-action@v4
-        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
         with:
           commit_message: Updated to latest Helm version v${{ steps.compare_releases.outputs.helmRelease }}
       - name: Create release on new Helm version
-        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
-        uses: "actions/create-release@v1"
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "${{ steps.compare_releases.outputs.helmRelease }}-1"
-          release_name: "${{ steps.compare_releases.outputs.helmRelease }}-1"
+          tag_name: "${{ steps.compare_releases.outputs.docker_and_git_tag }}"
+          release_name: "${{ steps.compare_releases.outputs.docker_and_git_tag }}"
           body: |
-                 The image can be pulled with `$ docker pull ghcr.io/cloudogu/jenkins-helm:${{ steps.compare_releases.outputs.helmRelease }}-1`
+                 The image can be pulled with `$ docker pull ghcr.io/cloudogu/jenkins-helm:${{ steps.compare_releases.outputs.docker_and_git_tag }}`
           draft: false
           prerelease: false
           commitish: ${{ steps.auto-commit-action.outputs.commit_hash }} # Ignored if empty, i.e. no commit because of no change
       - name: Prepare
-        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
         id: prep
         run: |
           GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/jenkins-helm
-          VERSION=latest
+          
+          VERSION=${{ steps.compare_releases.outputs.docker_and_git_tag }}
         
+          TAGS="${GHCR_IMAGE}:latest,${GHCR_IMAGE}:${VERSION}"
+          
           COMMIT="${{ steps.auto-commit-action.outputs.commit_hash }}"
           if [[ -z "${COMMIT}" ]]; then
             COMMIT="$(echo ${{ github.sha }} | cut -c1-7)"
           fi
-  
-          TAGS="${GHCR_IMAGE}:${VERSION}"
 
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            TAGS="${TAGS},${GHCR_IMAGE}:${VERSION}"
-          fi
-
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "GHCR_IMAGE=${GHCR_IMAGE}" >> $GITHUB_ENV
-          echo "TAGS=${TAGS}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" | tee -a $GITHUB_ENV
+          echo "GHCR_IMAGE=${GHCR_IMAGE}" | tee -a $GITHUB_ENV
+          echo "TAGS=${TAGS}" | tee -a $GITHUB_ENV
           
-          echo "IMAGE=ghcr.io/$GITHUB_REPOSITORY" >> $GITHUB_ENV
-          echo "BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-          echo "GIT_SHA=$COMMIT" >> $GITHUB_ENV
-          echo "GIT_REF=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)" >> $GITHUB_ENV
+          echo "IMAGE=ghcr.io/$GITHUB_REPOSITORY" | tee -a $GITHUB_ENV
+          echo "BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')" | tee -a $GITHUB_ENV
+          echo "GIT_SHA=$COMMIT" | tee -a $GITHUB_ENV
+          echo "GIT_REF=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)" | tee -a $GITHUB_ENV
       - name: Login to GitHub Container Registry
-        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
         uses: docker/login-action@v1
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
         id: docker_build
         uses: docker/build-push-action@v2
         with:
@@ -88,13 +86,13 @@ jobs:
           labels: |
             org.opencontainers.image.authors=${{ github.repository_owner }}
             org.opencontainers.image.created=${{ env.BUILD_DATE }}
-            org.opencontainers.image.description=Created from commit ${{ steps.auto-commit-action.outputs.commit_hash }} and ref ${{ env.GIT_REF }}
+            org.opencontainers.image.description=Created from commit ${{ env.GIT_SHA }} and ref ${{ env.GIT_REF }}
             org.opencontainers.image.ref.name=${{ env.GIT_REF }}
             org.opencontainers.image.revision=${{ env.GIT_SHA }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=Created from commit ${{ env.GIT_SHA}} and ref ${{ env.GIT_REF }}
           tags: ${{ env.TAGS }}
       - name: Check manifest
-        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
+        if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
         run: docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ env.VERSION }}
         
