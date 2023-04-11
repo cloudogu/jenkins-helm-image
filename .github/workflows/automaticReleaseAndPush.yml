@@ -2,6 +2,8 @@ name: Trigger release on new Helm version
 on: 
   schedule:
     - cron:  '30 4 * * *'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   check_for_new_helm_version_and_push_image:
@@ -20,7 +22,9 @@ jobs:
         id: get_plugins
         run: |
           eval $(scripts/getPackages.sh)
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - name: Commit changes
+        id: auto-commit-action
+        uses: stefanzweifel/git-auto-commit-action@v4
         if: steps.compare_releases.outputs.triggerNewRelease == 'true'
         with:
           commit_message: Updated to latest Helm version v${{ steps.compare_releases.outputs.helmRelease }}
@@ -36,16 +40,19 @@ jobs:
                  The image can be pulled with `$ docker pull ghcr.io/cloudogu/jenkins-helm:${{ steps.compare_releases.outputs.helmRelease }}-1`
           draft: false
           prerelease: false
-      - name: Checkout
-        if: steps.compare_releases.outputs.triggerNewRelease == 'true'
-        uses: actions/checkout@v3
+          commitish: ${{ steps.auto-commit-action.outputs.commit_hash }} # Ignored if empty, i.e. no commit because of no change
       - name: Prepare
         if: steps.compare_releases.outputs.triggerNewRelease == 'true'
         id: prep
         run: |
           GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/jenkins-helm
           VERSION=latest
-
+        
+          COMMIT="${{ steps.auto-commit-action.outputs.commit_hash }}"
+          if [[ -z "${COMMIT}" ]]; then
+            COMMIT="$(echo ${{ github.sha }} | cut -c1-7)"
+          fi
+  
           TAGS="${GHCR_IMAGE}:${VERSION}"
 
           if [[ $GITHUB_REF == refs/tags/* ]]; then
@@ -59,7 +66,7 @@ jobs:
           
           echo "IMAGE=ghcr.io/$GITHUB_REPOSITORY" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
-          echo "GIT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+          echo "GIT_SHA=$COMMIT" >> $GITHUB_ENV
           echo "GIT_REF=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
         if: steps.compare_releases.outputs.triggerNewRelease == 'true'
@@ -74,13 +81,18 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
+          # As we might have committed some changes above, we need to tell buildKit to check this commit out,
+          # instead of the commit that this build was triggered with ( github.sha )
+          # See https://github.com/docker/build-push-action/tree/817ed59#git-context
+          context: https://github.com/${{ github.repository }}.git#${{ env.GIT_SHA }}
           labels: |
             org.opencontainers.image.authors=${{ github.repository_owner }}
             org.opencontainers.image.created=${{ env.BUILD_DATE }}
-            org.opencontainers.image.description=Created from commit ${{ env.GIT_SHA }} and ref ${{ env.GIT_REF }}
+            org.opencontainers.image.description=Created from commit ${{ steps.auto-commit-action.outputs.commit_hash }} and ref ${{ env.GIT_REF }}
             org.opencontainers.image.ref.name=${{ env.GIT_REF }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.GIT_SHA }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Created from commit ${{ env.GIT_SHA}} and ref ${{ env.GIT_REF }}
           tags: ${{ env.TAGS }}
       - name: Check manifest
         if: steps.compare_releases.outputs.triggerNewRelease == 'true'
