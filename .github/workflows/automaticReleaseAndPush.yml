@@ -15,15 +15,11 @@ jobs:
       - name: Compare releases
         id: compare_releases
         run: |
-          eval $(scripts/checkHelmVersion.sh)
+          eval $(scripts/updateVersionsInDockerfile.sh)
           echo "triggerNewRelease=${triggerNewRelease}" | tee -a $GITHUB_OUTPUT
           echo "helmRelease=${helmRelease}" | tee -a $GITHUB_OUTPUT
           echo "docker_and_git_tag=${helmRelease}-1" | tee -a $GITHUB_OUTPUT
 # TODO increment prefix -1 if exists ⬆️  
-      - name: Get Plugins
-        id: get_plugins
-        run: |
-          eval $(scripts/getPackages.sh)
       - name: Commit changes
         id: auto-commit-action
         uses: stefanzweifel/git-auto-commit-action@v4
@@ -68,7 +64,7 @@ jobs:
           echo "GIT_REF=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)" | tee -a $GITHUB_ENV
       - name: Login to GitHub Container Registry
         if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -76,7 +72,7 @@ jobs:
       - name: Build and push
         if: steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch'
         id: docker_build
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4
         with:
           push: true
           # As we might have committed some changes above, we need to tell buildKit to check this commit out,
