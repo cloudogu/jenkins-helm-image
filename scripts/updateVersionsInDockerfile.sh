@@ -1,12 +1,49 @@
 #!/bin/bash
 
-# get latest helm charts values and extract plugins
-#
-curl -s https://raw.githubusercontent.com/jenkinsci/helm-charts/main/charts/jenkins/values.yaml -o values.yaml
+main() {
+
+    checkForCommands curl
+    checkForCommands jq
+
+    if [[ -z "$1" ]]; then
+        helmRelease=$(getLatestHelmRelease)
+    else
+        helmRelease=$1
+    fi
+    
+    plugins=$(getPlugins ${helmRelease})
+    
+    imageVersion=$(getImageVersion ${helmRelease})
+
+    if [[ -z "$2" ]]; then
+        cloudoguRelease=$(getLatestCloudoguHelmRelease)
+    else
+        cloudoguRelease=$2
+    fi
+
+    echo "triggerNewRelease=$(updateDockerfileOnNewRelease); helmRelease=${helmRelease}"
+}
+
+# get image version from helm chart
+function getImageVersion() {
+    local helmRelease="$1"
+    
+    curl -s \
+      "https://raw.githubusercontent.com/jenkinsci/helm-charts/jenkins-${helmRelease}/charts/jenkins/Chart.yaml" \
+      | grep 'image: jenkins/jenkins' | awk {'print $2'}
+}
+
+function getPlugins() {
+    local helmRelease="$1"
+    local valuesYaml=$(mktemp --suffix values.yaml)
+    
+    curl -s "https://raw.githubusercontent.com/jenkinsci/helm-charts/jenkins-${helmRelease}/charts/jenkins/values.yaml" \
+      -o ${valuesYaml}
+    parseYaml $(echo ${valuesYaml})
+}
 
 # function to parse the values.yaml and get a list of "controller install plugins"
-#
-function parse_yaml {
+function parseYaml {
    local prefix=$2
    local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
    sed -ne "s|,$s\]$s\$|]|" \
@@ -33,32 +70,20 @@ function parse_yaml {
    grep "controller_installPlugins_" | \
    grep -oP '="\K[^"]+'
 }
-plugins=$(parse_yaml $(echo values.yaml))
-
-# change plugins in Dockerfile
-#
-sed -i "/ARG PLUGINS=/c\ARG PLUGINS='$(echo $plugins)'" ./Dockerfile
 
 # get our latest build version
-#
 function getLatestCloudoguHelmRelease() {
     latestCloudoguRelease=$(curl -s https://api.github.com/repos/cloudogu/jenkins-helm-image/releases/latest | jq -r '.tag_name')
     echo "$latestCloudoguRelease"
 }
 
 # get latest helm release version
-#
-function getlatestHelmRelease() {
+function getLatestHelmRelease() {
     latestHelmRelease=$(curl -s https://raw.githubusercontent.com/jenkinsci/helm-charts/main/charts/jenkins/Chart.yaml | grep 'version:' | awk {'print $2'})
     echo "$latestHelmRelease"
 }
 
-# get latest image version from helm chart
-#
-imageVersion=$(curl -s https://raw.githubusercontent.com/jenkinsci/helm-charts/main/charts/jenkins/Chart.yaml | grep 'image: jenkins/jenkins' | awk {'print $2'})
-
 # compare both versions if remote is greater, then trigger newRelease
-#
 function checkForNewRelease() {
     newRelease=false
 
@@ -76,43 +101,22 @@ function checkForNewRelease() {
 }
 
 # change image file name in Dockerfile
-#
 function updateDockerfileOnNewRelease() {
     triggerNewRelease=false
     if [[ $(checkForNewRelease) == 'true' ]]; then
         # changing the helm version in the dockerfile
         sed -i "/ARG JENKINS_IMAGE=/c\ARG JENKINS_IMAGE=${imageVersion}" ./Dockerfile
+        # change plugins in Dockerfile
+        sed -i "/ARG PLUGINS=/c\ARG PLUGINS='$(echo $plugins)'" ./Dockerfile
         triggerNewRelease=true
     fi
     echo "$triggerNewRelease"
 }
 
-
 checkForCommands() {
-    if ! command -v $1 &> /dev/null
-then
-    apt install -y "$1"
-fi
+  if ! command -v $1 &> /dev/null; then
+      apt install -y "$1"
+  fi
 }
 
-run_main() {
-
-    checkForCommands curl
-    checkForCommands jq
-
-    if [[ -z "$1" ]]; then
-        helmRelease=$(getlatestHelmRelease)
-    else
-        helmRelease=$1
-    fi
-
-    if [[ -z "$2" ]]; then
-        cloudoguRelease=$(getLatestCloudoguHelmRelease)
-    else
-        cloudoguRelease=$2
-    fi
-
-    echo "triggerNewRelease=$(updateDockerfileOnNewRelease); helmRelease=${helmRelease}"
-}
-
-echo $(run_main $1 $2)
+echo $(main $1 $2)
