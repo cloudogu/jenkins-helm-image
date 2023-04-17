@@ -2,11 +2,12 @@ name: Trigger release on new Helm version
 on: 
   schedule:
     - cron:  '30 4 * * *'
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
-      docker_tag:
-        description: 'Docker Tag (only next number, without dash)'
+      release_suffix:
+        description: 'Suffix of release, git and docker tag (only next number, without dash). e.g. "2" -> "4.3.22-2"'
         required: true
         type: string
         default: '1'
@@ -24,8 +25,7 @@ jobs:
           eval $(scripts/updateVersionsInDockerfile.sh)
           echo "triggerNewRelease=${triggerNewRelease}" | tee -a $GITHUB_OUTPUT
           echo "helmRelease=${helmRelease}" | tee -a $GITHUB_OUTPUT
-          echo "docker_and_git_tag=${helmRelease}-${{ inputs.docker_tag }}" | tee -a $GITHUB_OUTPUT
-# TODO increment prefix -1 if exists ⬆️  
+          echo "docker_and_git_tag=${helmRelease}-${{ inputs.release_suffix }}" | tee -a $GITHUB_OUTPUT
       - name: Commit changes
         id: auto-commit-action
         uses: stefanzweifel/git-auto-commit-action@v4
