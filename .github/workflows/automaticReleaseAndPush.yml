@@ -4,6 +4,11 @@ on:
     - cron:  '30 4 * * *'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+    inputs:
+      docker_tag:
+        description: 'Docker Tag (only next number, without dash)'
+        required: true
+        type: string
 
 jobs:
   check_for_new_helm_version_and_push_image:
@@ -18,7 +23,7 @@ jobs:
           eval $(scripts/updateVersionsInDockerfile.sh)
           echo "triggerNewRelease=${triggerNewRelease}" | tee -a $GITHUB_OUTPUT
           echo "helmRelease=${helmRelease}" | tee -a $GITHUB_OUTPUT
-          echo "docker_and_git_tag=${helmRelease}-1" | tee -a $GITHUB_OUTPUT
+          echo "docker_and_git_tag=${helmRelease}-${{ inputs.docker_tag }}" | tee -a $GITHUB_OUTPUT
 # TODO increment prefix -1 if exists ⬆️  
       - name: Commit changes
         id: auto-commit-action
