@@ -37,7 +37,7 @@ plugins=$(parse_yaml $(echo values.yaml))
 
 # change plugins in Dockerfile
 #
-sed -i "/ARG PLUGINS=/c\ARG PLUGINS=$(echo $plugins)" ./Dockerfile
+sed -i "/ARG PLUGINS=/c\ARG PLUGINS='$(echo $plugins)'" ./Dockerfile
 
 # get our latest build version
 #
