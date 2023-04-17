@@ -9,6 +9,7 @@ on:
         description: 'Docker Tag (only next number, without dash)'
         required: true
         type: string
+        default: '1'
 
 jobs:
   check_for_new_helm_version_and_push_image:
