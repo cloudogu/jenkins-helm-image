@@ -51,7 +51,7 @@ jobs:
           
           COMMIT="${{ steps.auto-commit-action.outputs.commit_hash }}"
           if [[ -z "${COMMIT}" ]]; then
-            COMMIT="$(echo ${{ github.sha }} | cut -c1-7)"
+            COMMIT="$(echo ${{ github.sha }})"
           fi
 
           echo "VERSION=${VERSION}" | tee -a $GITHUB_ENV
