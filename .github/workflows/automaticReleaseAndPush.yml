@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       docker_tag:
-        description: 'Docker Tag'
+        description: 'Docker Tag (only next number, without dash)'
         required: true
         type: string
 
