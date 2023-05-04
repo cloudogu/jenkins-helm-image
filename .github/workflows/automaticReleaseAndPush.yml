@@ -26,7 +26,7 @@ jobs:
           eval $(scripts/updateVersionsInDockerfile.sh)
           echo "triggerNewRelease=${triggerNewRelease}" >> $GITHUB_OUTPUT
           echo "helmRelease=${helmRelease}" >> $GITHUB_OUTPUT
-          echo "docker_and_git_tag=${helmRelease}-${{ inputs.release_suffix }}" >> $GITHUB_OUTPUT
+          echo "docker_and_git_tag=${helmRelease}" >> $GITHUB_OUTPUT
       - name: Commit changes
         id: auto-commit-action
         uses: stefanzweifel/git-auto-commit-action@v4
