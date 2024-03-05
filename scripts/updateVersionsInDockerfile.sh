@@ -30,7 +30,7 @@ function getImageVersion() {
     
     curl -s \
       "https://raw.githubusercontent.com/jenkinsci/helm-charts/jenkins-${helmRelease}/charts/jenkins/Chart.yaml" \
-      | grep 'image: jenkins/jenkins' | awk {'print $2'}
+      | grep 'image: docker.io/jenkins/jenkins' | awk {'print $2'}
 }
 
 function getPlugins() {
