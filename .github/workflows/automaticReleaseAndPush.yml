@@ -39,7 +39,7 @@ jobs:
           
           VERSION=${{ steps.compare_releases.outputs.docker_and_git_tag }}
         
-          TAGS="${GHCR_IMAGE}:latest,${GHCR_IMAGE}:${VERSION}"
+          TAGS="${GHCR_IMAGE}:latest,${GHCR_IMAGE}:${VERSION},${GHCR_IMAGE}:$(echo $VERSION | sed 's/-\([0-9]*\)$//')"
           
           COMMIT="${{ steps.auto-commit-action.outputs.commit_hash }}"
           if [[ -z "${COMMIT}" ]]; then
