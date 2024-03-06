@@ -32,19 +32,6 @@ jobs:
         if: (steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' 
         with:
           commit_message: Updated to latest Helm version v${{ steps.compare_releases.outputs.helmRelease }}
-      - name: Create release on new Helm version
-        if: (steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: "${{ steps.compare_releases.outputs.docker_and_git_tag }}"
-          release_name: "${{ steps.compare_releases.outputs.docker_and_git_tag }}"
-          body: |
-                 The image can be pulled with `$ docker pull ghcr.io/cloudogu/jenkins-helm:${{ steps.compare_releases.outputs.docker_and_git_tag }}`
-          draft: false
-          prerelease: false
-          commitish: ${{ steps.auto-commit-action.outputs.commit_hash }} # Ignored if empty, i.e. no commit because of no change
       - name: Prepare
         id: prep
         run: |
@@ -95,4 +82,16 @@ jobs:
       - name: Check manifest
         if: (steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         run: docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:${{ env.VERSION }}
-        
+      - name: Create release on new Helm version
+        if: (steps.compare_releases.outputs.triggerNewRelease == 'true' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "${{ steps.compare_releases.outputs.docker_and_git_tag }}"
+          release_name: "${{ steps.compare_releases.outputs.docker_and_git_tag }}"
+          body: |
+            The image can be pulled with `$ docker pull ghcr.io/cloudogu/jenkins-helm:${{ steps.compare_releases.outputs.docker_and_git_tag }}`
+          draft: false
+          prerelease: false
+          commitish: ${{ steps.auto-commit-action.outputs.commit_hash }} # Ignored if empty, i.e. no commit because of no change
