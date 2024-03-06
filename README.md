@@ -6,13 +6,30 @@ to (transitive) plugin dependency mismatches and speeds up startup.
 
 ## Usage
 
-In your `values.yaml`:  Use the helm chart version as `tag` and append the suffix from this repo, usually `-1`, e.g. 
+In your `values.yaml`:  Use the helm chart version as `tag`, e.g. 
 
 ```yaml
 controller:
-  image: "ghcr.io/cloudogu/jenkins-helm"
-  tag: "4.3.20-1"
+  image:
+    registry: ghcr.io
+    repository: cloudogu/jenkins-helm
+    tag: "5.0.17"
   installPlugins: false
+```
+
+Note that there are also immutable version with a suffix such aus `-1`, corresponding to the [releases](https://github.com/cloudogu/jenkins-helm-image/releases/) in this repo.  
+These reflect the rare occasion when we change the build logic while the upstream helm chart version remains the same.  
+For easier maintenance we recommend using the image tag without suffix.  
+This way the helm chart's version and the image's version are exactly the same.  
+This makes it easier to install and maintain, e.g. like so:
+
+```bash
+VERSION=5.0.17
+helm upgrade -i jenkins --version $VERSION \
+    --set controller.image.registry=ghcr.io \
+    --set controller.image.repository=cloudogu/jenkins-helm \
+    --set controller.image.tag="$VERSION"
+  jenkins/jenkins
 ```
 
 ## Background
