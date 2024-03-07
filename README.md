@@ -24,12 +24,19 @@ This way the helm chart's version and the image's version are exactly the same.
 This makes it easier to install and maintain, e.g. like so:
 
 ```bash
-VERSION=5.0.17
+VERSION=5.0.18
 helm upgrade -i jenkins --version $VERSION \
     --set controller.image.registry=ghcr.io \
     --set controller.image.repository=cloudogu/jenkins-helm \
-    --set controller.image.tag="$VERSION"
+    --set controller.image.tag="$VERSION" \
+    --set controller.installPlugins=false \
   jenkins/jenkins
+```
+
+Of course, you can also try this image without Kubernetes.
+
+```bash
+docker run --rm -p 8080:8080 ghcr.io/cloudogu/jenkins-helm:5.0.18
 ```
 
 ## Background
