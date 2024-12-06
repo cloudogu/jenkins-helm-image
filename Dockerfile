@@ -1,5 +1,5 @@
 ARG JENKINS_IMAGE=docker.io/jenkins/jenkins:2.479.2-jdk17
-ARG PLUGINS='kubernetes:4300.vd82c5692b_3a_e workflow-aggregator:600.vb_57cdd26fdd7 git:5.6.0 configuration-as-code:1903.v004d55388f30'
+ARG PLUGINS='kubernetes:4302.va_756e4b_67715 workflow-aggregator:600.vb_57cdd26fdd7 git:5.6.0 configuration-as-code:1903.v004d55388f30'
 
 FROM $JENKINS_IMAGE
 ARG PLUGINS
