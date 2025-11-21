@@ -97,38 +97,8 @@ jobs:
           commitish: ${{ steps.auto-commit-action.outputs.commit_hash }} # Ignored if empty, i.e. no commit because of no change
 
   notify_failure:
-    runs-on: ubuntu-latest
-    needs: check_for_new_helm_version_and_push_image
-    permissions:
-      issues: write
-      contents: read
+    uses: ./.github/workflows/notify_failure.yml
+    needs: [ check_for_new_helm_version_and_push_image ]
     if: failure()
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    steps:
-      - name: Manage issue
-        id: manage_issue
-        run: |
-          ISSUE_TITLE="[Workflow Log] Central error logging"
-          ISSUE_DATA=$(gh issue list -R "$GITHUB_REPOSITORY" --search "is:open in:title \"${ISSUE_TITLE}\"" --json number --limit 1)
-          ISSUE_NUMBER=$(echo "$ISSUE_DATA" | jq -r '.[0].number')
-          
-          if [ -z "$ISSUE_NUMBER" ] || [ "$ISSUE_NUMBER" = "null" ]; then
-            NEW_ISSUE_NUMBER=$(gh issue create -R "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" \
-                                               --body "This issue serves as a central log for all workflow errors." \
-                                                | sed -n 's/.*#\([0-9]\+\).*/\1/p')
-            echo "issue_number=$NEW_ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
-          else              
-            echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
-          fi                   
-
-      - name: Create comment
-        id: create_comment
-        run: |
-          if [ -z "${{ steps.manage_issue.outputs.issue_number }}" ] || [ "${{ steps.manage_issue.outputs.issue_number }}" = "null" ]; then
-            echo "Issue number not found!"
-            exit 1
-          else
-            gh issue comment ${{ steps.manage_issue.outputs.issue_number }} -R "$GITHUB_REPOSITORY" --body "***Workflow failure*** ([View workflow run for details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))"
-          fi
+    with:
+      needs_job: check_for_new_helm_version_and_push_image
