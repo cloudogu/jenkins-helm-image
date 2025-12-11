@@ -95,3 +95,14 @@ jobs:
           draft: false
           prerelease: false
           commitish: ${{ steps.auto-commit-action.outputs.commit_hash }} # Ignored if empty, i.e. no commit because of no change
+
+  notify_failure:
+    permissions:
+      issues: write
+      contents: read
+
+    uses: ./.github/workflows/notify_failure.yml
+    needs: [ check_for_new_helm_version_and_push_image ]
+    if: failure()
+    with:
+      needs_job: check_for_new_helm_version_and_push_image
