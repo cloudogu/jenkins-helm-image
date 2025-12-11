@@ -6,10 +6,7 @@ on:
       needs_job:
         required: true
         type: string
-    secrets:
-      GITHUB_TOKEN:
-        required: true
-
+        
 jobs:
   notify_failure:
     runs-on: ubuntu-latest
@@ -17,9 +14,6 @@ jobs:
       issues: write
       contents: read
     if: failure()
-
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Manage issue
@@ -36,10 +30,14 @@ jobs:
             echo "issue_number=$NEW_ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
           else              
             echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
-          fi                   
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create comment
         run: |
           gh issue comment ${{ steps.manage_issue.outputs.issue_number }} \
              -R "$GITHUB_REPOSITORY" \
              --body "***Workflow failure*** ([View workflow run for details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
