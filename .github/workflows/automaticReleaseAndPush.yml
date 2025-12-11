@@ -106,3 +106,5 @@ jobs:
     if: failure()
     with:
       needs_job: check_for_new_helm_version_and_push_image
+    secrets:     
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
